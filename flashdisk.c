@@ -1,6 +1,5 @@
 //gcc -Wall -o flashdisk flashdisk.c -lusb-1.0
 
-// TODO: Tatsächliche SCSI Command-Block-Länge verwenden (momentan sind es immer 16 Byte)
 // TODO: mehere Command Abfrage schleifen
 
 #include <stdio.h>
@@ -56,7 +55,7 @@ struct command_status_wrapper {
 	uint8_t bCSWStatus;
 };
 
-static void display_buffer_hex(unsigned char *buffer, unsigned size)
+void display_buffer_hex(unsigned char *buffer, unsigned size)
 {
 	unsigned int width=32;
 	unsigned i, j;
@@ -153,7 +152,7 @@ int get_cmd_status(libusb_device_handle *handle)
 	return 0;
 }
 
-void close_dev(libusb_device_handle *handle)
+void msd_close_dev(libusb_device_handle *handle)
 {
 	libusb_reset_device(handle);
 	libusb_release_interface(handle, INTERFACE);
@@ -183,17 +182,25 @@ int msd_init(libusb_device_handle **handle)
 	if (ret < 0)
 	{
 		printf("usb_claim_interface error %d\n", ret);
+		msd_close_dev(*handle);
 		return 3;
 	}
 	printf("claimed interface\n");
 	
 	ret = libusb_control_transfer(*handle,0b00100001,0b11111111,0,0,NULL,0,0);
-	if (ret) return 4;
+	if (ret)
+	{
+		printf("Error %d\n",ret);
+		msd_close_dev(*handle);
+		return 4;
+	}
 	printf("Reset OK\n");
+	
 	ret = libusb_control_transfer(*handle,0b10100001,0b11111110,0,0,&lun,1,0);
 	if (ret<0)
 	{
 		printf("Error %d\n",ret);
+		msd_close_dev(*handle);
 		return 5;
 	}
 	printf("Anzahl LUN = %d\n",lun);
@@ -216,7 +223,7 @@ int msd_inquiry(libusb_device_handle *handle, uint8_t *buffer)
 	if (ret)
 	{
 		printf("send block command failed\n");
-		close_dev(handle);
+		msd_close_dev(handle);
 		return 1;
 	}
 		
@@ -224,14 +231,14 @@ int msd_inquiry(libusb_device_handle *handle, uint8_t *buffer)
 	if (ret)
 	{
 		printf("transfer data failed\n");
-		close_dev(handle);
+		msd_close_dev(handle);
 		return 1;
 	}
 	
 	ret=get_cmd_status(handle);
 	if (ret)
 	{
-		close_dev(handle);
+		msd_close_dev(handle);
 		return 1;
 	}
 	
@@ -251,7 +258,7 @@ int msd_read_capacity(libusb_device_handle *handle, uint8_t *buffer)
 	if (ret)
 	{
 		printf("send block command failed\n");
-		close_dev(handle);
+		msd_close_dev(handle);
 		return 1;
 	}
 	
@@ -259,14 +266,14 @@ int msd_read_capacity(libusb_device_handle *handle, uint8_t *buffer)
 	if (ret)
 	{
 		printf("transfer data failed\n");
-		close_dev(handle);
+		msd_close_dev(handle);
 		return 1;
 	}
 	
 	ret=get_cmd_status(handle);
 	if (ret)
 	{
-		close_dev(handle);
+		msd_close_dev(handle);
 		return 1;
 	}
 	
@@ -288,7 +295,7 @@ int msd_write(libusb_device_handle *handle, uint8_t *buffer, uint8_t lba, unsign
 	if (ret)
 	{
 		printf("send block command failed\n");
-		close_dev(handle);
+		msd_close_dev(handle);
 		return 1;
 	}
 	
@@ -296,14 +303,14 @@ int msd_write(libusb_device_handle *handle, uint8_t *buffer, uint8_t lba, unsign
 	if (ret)
 	{
 		printf("transfer data failed\n");
-		close_dev(handle);
+		msd_close_dev(handle);
 		return 1;
 	}
 	
 	ret=get_cmd_status(handle);
 	if (ret)
 	{
-		close_dev(handle);
+		msd_close_dev(handle);
 		return 1;
 	}
 		
@@ -325,7 +332,7 @@ int msd_read(libusb_device_handle *handle, uint8_t *buffer, uint8_t lba, unsigne
 	if (ret)
 	{
 		printf("send block command failed\n");
-		close_dev(handle);
+		msd_close_dev(handle);
 		return 1;
 	}
 	
@@ -333,23 +340,24 @@ int msd_read(libusb_device_handle *handle, uint8_t *buffer, uint8_t lba, unsigne
 	if (ret)
 	{
 		printf("transfer data failed\n");
-		close_dev(handle);
+		msd_close_dev(handle);
 		return 1;
 	}
 	get_cmd_status(handle);
 	if (ret)
 	{
-		close_dev(handle);
+		msd_close_dev(handle);
 		return 1;
 	}
 	
 	return 0;
 }
 
+#ifndef SHL
 int main(int argc, char **argv)
 {
 	int ret;	
-	libusb_device_handle *handle = NULL;		
+	libusb_device_handle *handle = NULL;
 	uint8_t buffer[1024];
 	char vid[9], pid[9], rev[5];
 	int i;
@@ -396,7 +404,7 @@ int main(int argc, char **argv)
 	max_lba = be_to_int32(&buffer[0]);
 	block_size = be_to_int32(&buffer[4]);
 	device_size = ((double)(max_lba+1))*block_size/(1024*1024*1024);
-	printf("   Max LBA: %08X, Block Size: %08X (%.2f GB)\n", max_lba, block_size, device_size);		
+	printf("   Max LBA: %08X, Block Size: %08X (%.2f GB)\n", max_lba, block_size, device_size);
 		
 	// Write Data
 	if (bWrite)
@@ -406,16 +414,17 @@ int main(int argc, char **argv)
 		if (str) strcpy((char*)buffer+200,str);
 		strcpy((char*)buffer+512,"Na das ist aber fein!!!");
 		if (str) strcpy((char*)buffer+512+200,str);
-		ret = msd_write(handle, buffer, 10, 1024);
+		ret = msd_write(handle, buffer, 0, 1024);
 		if (ret) return 1;
 	}
 	
 	// Read Data	
 	memset(buffer, 0, sizeof(buffer));
-	ret = msd_read(handle, buffer, 10, 1024);
+	ret = msd_read(handle, buffer, 0, 1024);
 	if (ret) return 1;
 	display_buffer_hex(buffer, 1024);	
 		
-	close_dev(handle);
+	msd_close_dev(handle);
 	return 0;
 }
+#endif
