@@ -10,8 +10,9 @@ $(EXEC): flashdisk.c
 	gcc -Wall -o $@ $+ -lusb-1.0
 	
 install:
-	sudo cp msd.h /usr/include
-	sudo cp $(SL) /usr/lib
+	sudo cp msd.h /usr/local/include
+	sudo cp $(SL) /usr/local/lib
+	sudo cp $(EXEC) /usr/local/bin
 	
 clean:
 	rm $(SL) $(EXEC)

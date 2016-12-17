@@ -156,7 +156,7 @@ void msd_close_dev(libusb_device_handle *handle)
 {
 	libusb_reset_device(handle);
 	libusb_release_interface(handle, INTERFACE);
-	libusb_attach_kernel_driver(handle,INTERFACE);	
+	//libusb_attach_kernel_driver(handle,INTERFACE);
 	libusb_exit(NULL);
 }
 
