@@ -60,6 +60,7 @@ void display_buffer_hex(unsigned char *buffer, unsigned size)
 	unsigned int width=32;
 	unsigned i, j;
 
+	printf("%s","\x1B[31m");
 	for (i=0; i<size; i+=width) {
 		printf("\n  %08x  ", i);
 		for(j=0; j<width; j++)
@@ -80,7 +81,8 @@ void display_buffer_hex(unsigned char *buffer, unsigned size)
 			}
 		}
 	}
-	printf("\n" );
+	printf("%s","\x1B[0m");
+	printf("\n\n" );
 }
 
 int send_cmd_block(libusb_device_handle *handle, uint8_t *cdb, uint32_t dataLength, uint8_t direction)
