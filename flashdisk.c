@@ -64,13 +64,13 @@ void display_buffer_hex(unsigned char *buffer, unsigned size)
 	for (i=0; i<size; i+=width) {
 		printf("\n  %08x  ", i);
 		for(j=0; j<width; j++)
-		{					
-			printf("%02x", buffer[i+j]);					
+		{
+			printf("%02x", buffer[i+j]);
 			printf(" ");
 		}
 		printf(" ");
 		for(j=0; j<width; j++)
-		{			
+		{
 			if ((buffer[i+j] < 32) || (buffer[i+j] > 126))
 			{
 				printf(".");
@@ -91,8 +91,8 @@ int send_cmd_block(libusb_device_handle *handle, uint8_t *cdb, uint32_t dataLeng
 	int transferred;
 	struct command_block_wrapper cbw;
 	uint8_t cdb_len;
-	
-	cdb_len = cdb_length[cdb[0]];		
+
+	cdb_len = cdb_length[cdb[0]];
 	memset(&cbw, 0, sizeof(cbw));
 	cbw.dCBWSignature[0] = 'U';
 	cbw.dCBWSignature[1] = 'S';
@@ -104,37 +104,37 @@ int send_cmd_block(libusb_device_handle *handle, uint8_t *cdb, uint32_t dataLeng
 	cbw.bCBWLUN = 0;
 	cbw.bCBWCBLength = cdb_len;
 	memcpy(cbw.CBWCB, cdb, cdb_len);
-	
-	ret = libusb_bulk_transfer(handle, END_POINT_OUT, (unsigned char*)&cbw, 31, &transferred, 1000);	
+
+	ret = libusb_bulk_transfer(handle, END_POINT_OUT, (unsigned char*)&cbw, 31, &transferred, 1000);
 	if (ret!=0)
 	{
-		printf("bulk_transfer failed %d\n",ret);			
+		printf("bulk_transfer failed %d\n",ret);
 		return 1;
 	}
 	printf("   Sent %d CDB bytes\n", transferred);
-	
+
 	return 0;
 }
 
 int transferData(libusb_device_handle *handle, unsigned char end_point, uint8_t *buffer, uint32_t dataLength)
-{	
+{
 	int ret;
 	int transferred;
-	
+
 	ret = libusb_bulk_transfer(handle, end_point, (unsigned char*)buffer, dataLength, &transferred, 1000);
 	if (ret!=0)
 	{
 		printf("bulk_transfer failed %d\n",ret);
 		return 1;
 	}
-	
+
 	if (end_point == END_POINT_IN)
 		printf("   Received ");
 	else
 		printf("   Sent ");
-		
+
 	printf("%d bytes\n", transferred);
-		
+
 	return 0;
 }
 
@@ -143,14 +143,14 @@ int get_cmd_status(libusb_device_handle *handle)
 	int ret;
 	int transferred;
 	struct command_status_wrapper csw;
-		
+
 	ret = libusb_bulk_transfer(handle, END_POINT_IN, (unsigned char*)&csw, 13, &transferred, 1000);
 	if (ret!=0)
 	{
 		printf("get_cmd_status failed: %d\n",ret);
 		return 1;
 	}
-		
+
 	return 0;
 }
 
@@ -166,11 +166,11 @@ int msd_init(libusb_device_handle **handle)
 {
 	int ret;
 	uint8_t lun;
-	
+
 	ret = libusb_init(NULL);
 	if (ret) return 1;
 	printf("libusb init OK\n");
-		
+
 	*handle = libusb_open_device_with_vid_pid(NULL,VENDOR_ID,PRODUCT_ID); // Flash Disk
 	if (!handle)
 	{
@@ -179,7 +179,7 @@ int msd_init(libusb_device_handle **handle)
 	}
 	libusb_reset_device(*handle);
 	libusb_detach_kernel_driver(*handle,INTERFACE);
-	
+
 	ret = libusb_claim_interface(*handle,INTERFACE);
 	if (ret < 0)
 	{
@@ -188,7 +188,7 @@ int msd_init(libusb_device_handle **handle)
 		return 3;
 	}
 	printf("claimed interface\n");
-	
+
 	ret = libusb_control_transfer(*handle,0b00100001,0b11111111,0,0,NULL,0,0);
 	if (ret)
 	{
@@ -197,7 +197,7 @@ int msd_init(libusb_device_handle **handle)
 		return 4;
 	}
 	printf("Reset OK\n");
-	
+
 	ret = libusb_control_transfer(*handle,0b10100001,0b11111110,0,0,&lun,1,0);
 	if (ret<0)
 	{
@@ -206,7 +206,7 @@ int msd_init(libusb_device_handle **handle)
 		return 5;
 	}
 	printf("Anzahl LUN = %d\n",lun);
-	
+
 	return 0;
 }
 
@@ -215,12 +215,12 @@ int msd_inquiry(libusb_device_handle *handle, uint8_t *buffer)
 {
 	int ret;
 	uint8_t cdb[16];	// SCSI Command Descriptor Block
-	
-	printf("Sending Inquiry:\n");	
+
+	printf("Sending Inquiry:\n");
 	memset(cdb, 0, sizeof(cdb));
 	cdb[0] = 0x12;	// Inquiry
 	cdb[4] = INQUIRY_LENGTH;
-	
+
 	ret = send_cmd_block(handle, cdb, INQUIRY_LENGTH, LIBUSB_ENDPOINT_IN);
 	if (ret)
 	{
@@ -228,7 +228,7 @@ int msd_inquiry(libusb_device_handle *handle, uint8_t *buffer)
 		msd_close_dev(handle);
 		return 1;
 	}
-		
+
 	ret = transferData(handle, END_POINT_IN, buffer, INQUIRY_LENGTH);
 	if (ret)
 	{
@@ -236,14 +236,14 @@ int msd_inquiry(libusb_device_handle *handle, uint8_t *buffer)
 		msd_close_dev(handle);
 		return 1;
 	}
-	
+
 	ret=get_cmd_status(handle);
 	if (ret)
 	{
 		msd_close_dev(handle);
 		return 1;
 	}
-	
+
 	return 0;
 }
 
@@ -251,11 +251,11 @@ int msd_read_capacity(libusb_device_handle *handle, uint8_t *buffer)
 {
 	int ret;
 	uint8_t cdb[16];	// SCSI Command Descriptor Block
-	
-	printf("Reading Capacity:\n");	
+
+	printf("Reading Capacity:\n");
 	memset(cdb, 0, sizeof(cdb));
-	cdb[0] = 0x25;	// Read Capacity	
-	
+	cdb[0] = 0x25;	// Read Capacity
+
 	ret = send_cmd_block(handle, cdb, READ_CAPACITY_LENGTH, LIBUSB_ENDPOINT_IN);
 	if (ret)
 	{
@@ -263,7 +263,7 @@ int msd_read_capacity(libusb_device_handle *handle, uint8_t *buffer)
 		msd_close_dev(handle);
 		return 1;
 	}
-	
+
 	ret = transferData(handle, END_POINT_IN, buffer, READ_CAPACITY_LENGTH);
 	if (ret)
 	{
@@ -271,14 +271,14 @@ int msd_read_capacity(libusb_device_handle *handle, uint8_t *buffer)
 		msd_close_dev(handle);
 		return 1;
 	}
-	
+
 	ret=get_cmd_status(handle);
 	if (ret)
 	{
 		msd_close_dev(handle);
 		return 1;
 	}
-	
+
 	return 0;
 }
 
@@ -286,13 +286,13 @@ int msd_write(libusb_device_handle *handle, uint8_t *buffer, uint8_t lba, unsign
 {
 	int ret;
 	uint8_t cdb[16];	// SCSI Command Descriptor Block
-	
-	printf("Write Data:\n");	
+
+	printf("Write Data:\n");
 	memset(cdb, 0, sizeof(cdb));
 	cdb[0] = 0x2A;	// Write(10)
-	cdb[5] = lba;	
-	cdb[8] = dataLength/512;	// Blockweise		
-			
+	cdb[5] = lba;
+	cdb[8] = dataLength/512;	// Blockweise
+
 	ret = send_cmd_block(handle, cdb, dataLength, LIBUSB_ENDPOINT_OUT);
 	if (ret)
 	{
@@ -300,7 +300,7 @@ int msd_write(libusb_device_handle *handle, uint8_t *buffer, uint8_t lba, unsign
 		msd_close_dev(handle);
 		return 1;
 	}
-	
+
 	ret = transferData(handle, END_POINT_OUT, buffer, dataLength);
 	if (ret)
 	{
@@ -308,14 +308,14 @@ int msd_write(libusb_device_handle *handle, uint8_t *buffer, uint8_t lba, unsign
 		msd_close_dev(handle);
 		return 1;
 	}
-	
+
 	ret=get_cmd_status(handle);
 	if (ret)
 	{
 		msd_close_dev(handle);
 		return 1;
 	}
-		
+
 	return 0;
 }
 
@@ -323,13 +323,13 @@ int msd_read(libusb_device_handle *handle, uint8_t *buffer, uint8_t lba, unsigne
 {
 	int ret;
 	uint8_t cdb[16];	// SCSI Command Descriptor Block
-	
-	printf("Read Data:\n");	
+
+	printf("Read Data:\n");
 	memset(cdb, 0, sizeof(cdb));
-	cdb[0] = 0x28;	// Read(10)	
+	cdb[0] = 0x28;	// Read(10)
 	cdb[5] = lba; //an LBA 0 und 32 bereits gespeicherte Strings
 	cdb[8] = dataLength/512;	// Blockweise
-	
+
 	ret = send_cmd_block(handle, cdb, dataLength, LIBUSB_ENDPOINT_IN);
 	if (ret)
 	{
@@ -337,7 +337,7 @@ int msd_read(libusb_device_handle *handle, uint8_t *buffer, uint8_t lba, unsigne
 		msd_close_dev(handle);
 		return 1;
 	}
-	
+
 	ret = transferData(handle, END_POINT_IN, buffer, dataLength);
 	if (ret)
 	{
@@ -351,31 +351,42 @@ int msd_read(libusb_device_handle *handle, uint8_t *buffer, uint8_t lba, unsigne
 		msd_close_dev(handle);
 		return 1;
 	}
-	
+
 	return 0;
 }
 
 #ifndef SHL
 int main(int argc, char **argv)
 {
-	int ret;	
+	int ret;
 	libusb_device_handle *handle = NULL;
 	uint8_t buffer[1024];
 	char vid[9], pid[9], rev[5];
 	int i;
 	uint32_t max_lba, block_size;
-	double device_size;	
+	double device_size;
 	char bWrite=0;
+	char bWriteFile=0;
 	char *str=NULL;
+	FILE *file;
+	char *filename;
 
 	printf("*** Mass Storage Device Test ***\n\n");
-	
+
 	if (argc>1)
 	{
-		str = argv[1];
-		bWrite = 1;
+		if (*argv[1]=='w')
+		{
+			str = argv[2];
+			bWrite = 1;
+		}
+		else if(*argv[1]=='f')
+		{
+			filename = argv[2];
+			bWriteFile = 1;
+		}
 	}
-	
+
 	ret = msd_init(&handle);
 	if (ret)
 	{
@@ -383,11 +394,11 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	printf("MSD init ok!\n\n");
-	
+
 	//Inquiry
 	memset(buffer, 0, sizeof(buffer));
 	ret = msd_inquiry(handle, buffer);
-	if (ret) return 1;	
+	if (ret) return 1;
 	// The following strings are not zero terminated
 	for (i=0; i<8; i++) {
 		vid[i] = buffer[8+i];
@@ -397,17 +408,17 @@ int main(int argc, char **argv)
 	vid[8] = 0;
 	pid[8] = 0;
 	rev[4] = 0;
-	printf("   VID:PID:REV \"%8s\":\"%8s\":\"%4s\"\n", vid, pid, rev);	
-		
+	printf("   VID:PID:REV \"%8s\":\"%8s\":\"%4s\"\n", vid, pid, rev);
+
 	// Read capacity
 	memset(buffer, 0, sizeof(buffer));
 	ret = msd_read_capacity(handle, buffer);
-	if (ret) return 1;	
+	if (ret) return 1;
 	max_lba = be_to_int32(&buffer[0]);
 	block_size = be_to_int32(&buffer[4]);
 	device_size = ((double)(max_lba+1))*block_size/(1024*1024*1024);
 	printf("   Max LBA: %08X, Block Size: %08X (%.2f GB)\n", max_lba, block_size, device_size);
-		
+
 	// Write Data
 	if (bWrite)
 	{
@@ -419,14 +430,23 @@ int main(int argc, char **argv)
 		ret = msd_write(handle, buffer, 0, 1024);
 		if (ret) return 1;
 	}
-	
-	// Read Data	
+
+	// Read Data
 	memset(buffer, 0, sizeof(buffer));
 	ret = msd_read(handle, buffer, 0, 1024);
 	if (ret) return 1;
-	display_buffer_hex(buffer, 1024);	
-		
+	display_buffer_hex(buffer, 1024);
+
+	if (bWriteFile)
+	{
+		printf("Write to File: %s\n",filename);
+		file = fopen(filename,"w");
+		fwrite(buffer,1,1024,file);
+		fclose(file);
+	}
+
 	msd_close_dev(handle);
+
 	return 0;
 }
 #endif
