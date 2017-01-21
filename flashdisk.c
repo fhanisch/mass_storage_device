@@ -367,7 +367,6 @@ int main(int argc, char **argv)
 	double device_size;
 	char bWrite=0;
 	char bWriteFile=0;
-	char *str=NULL;
 	FILE *file;
 	char *filename;
 
@@ -377,10 +376,10 @@ int main(int argc, char **argv)
 	{
 		if (*argv[1]=='w')
 		{
-			str = argv[2];
+			filename = argv[2];
 			bWrite = 1;
 		}
-		else if(*argv[1]=='f')
+		else if(*argv[1]=='r')
 		{
 			filename = argv[2];
 			bWriteFile = 1;
@@ -423,10 +422,12 @@ int main(int argc, char **argv)
 	if (bWrite)
 	{
 		memset(buffer, 0, sizeof(buffer));
-		strcpy((char*)buffer,"Das ist das Haus vom Nikolaus!!!!!!\nUnd nebenan vom Weihnachtsmann!!!!!!!\n*** Jucheh Jucheh ***");
-		if (str) strcpy((char*)buffer+200,str);
-		strcpy((char*)buffer+512,"Na das ist aber fein!!!");
-		if (str) strcpy((char*)buffer+512+200,str);
+
+		printf("Read from File: %s\n",filename);
+		file = fopen(filename,"r");
+		fread(buffer,1,1024,file);
+		fclose(file);
+
 		ret = msd_write(handle, buffer, 0, 1024);
 		if (ret) return 1;
 	}
