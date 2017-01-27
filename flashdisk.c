@@ -360,7 +360,7 @@ int main(int argc, char **argv)
 {
 	int ret;
 	libusb_device_handle *handle = NULL;
-	uint8_t buffer[1024];
+	uint8_t buffer[2048];
 	char vid[9], pid[9], rev[5];
 	int i;
 	uint32_t max_lba, block_size;
@@ -425,24 +425,24 @@ int main(int argc, char **argv)
 
 		printf("Read from File: %s\n",filename);
 		file = fopen(filename,"r");
-		fread(buffer,1,1024,file);
+		fread(buffer,1,2048,file);
 		fclose(file);
 
-		ret = msd_write(handle, buffer, 0, 1024);
+		ret = msd_write(handle, buffer, 0, 2048);
 		if (ret) return 1;
 	}
 
 	// Read Data
 	memset(buffer, 0, sizeof(buffer));
-	ret = msd_read(handle, buffer, 0, 1024);
+	ret = msd_read(handle, buffer, 0, 2048);
 	if (ret) return 1;
-	display_buffer_hex(buffer, 1024);
+	display_buffer_hex(buffer, 2048);
 
 	if (bWriteFile)
 	{
 		printf("Write to File: %s\n",filename);
 		file = fopen(filename,"w");
-		fwrite(buffer,1,1024,file);
+		fwrite(buffer,1,2048,file);
 		fclose(file);
 	}
 
