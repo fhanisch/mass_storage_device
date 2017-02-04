@@ -360,7 +360,8 @@ int main(int argc, char **argv)
 {
 	int ret;
 	libusb_device_handle *handle = NULL;
-	uint8_t buffer[2048];
+	uint8_t buffer[10*1024];
+	uint32_t datasize = 1024;
 	char vid[9], pid[9], rev[5];
 	int i;
 	uint32_t max_lba, block_size;
@@ -378,11 +379,17 @@ int main(int argc, char **argv)
 		{
 			filename = argv[2];
 			bWrite = 1;
+			sscanf(argv[3],"%u",&datasize);
 		}
 		else if(*argv[1]=='r')
 		{
 			filename = argv[2];
 			bWriteFile = 1;
+			sscanf(argv[3],"%u",&datasize);
+		}
+		else
+		{
+			sscanf(argv[1],"%u",&datasize);
 		}
 	}
 
@@ -425,24 +432,24 @@ int main(int argc, char **argv)
 
 		printf("Read from File: %s\n",filename);
 		file = fopen(filename,"r");
-		fread(buffer,1,2048,file);
+		fread(buffer,1,datasize,file);
 		fclose(file);
 
-		ret = msd_write(handle, buffer, 0, 2048);
+		ret = msd_write(handle, buffer, 0, datasize);
 		if (ret) return 1;
 	}
 
 	// Read Data
 	memset(buffer, 0, sizeof(buffer));
-	ret = msd_read(handle, buffer, 0, 2048);
+	ret = msd_read(handle, buffer, 0, datasize);
 	if (ret) return 1;
-	display_buffer_hex(buffer, 2048);
+	display_buffer_hex(buffer, datasize);
 
 	if (bWriteFile)
 	{
 		printf("Write to File: %s\n",filename);
 		file = fopen(filename,"w");
-		fwrite(buffer,1,2048,file);
+		fwrite(buffer,1,datasize,file);
 		fclose(file);
 	}
 
